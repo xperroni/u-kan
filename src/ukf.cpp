@@ -74,6 +74,23 @@ void UKF::Prediction(double delta_t) {
   Complete this function! Estimate the object's location. Modify the state
   vector, x_. Predict sigma points, the state, and the state covariance matrix.
   */
+
+  //set state dimension
+  int n_x = P_.rows();
+
+  //define spreading parameter
+  double lambda = 3 - n_x;
+
+  // Calculate sigma intermediate values
+  MatrixXd A = P_.llt().matrixL();
+  double c = sqrt(lambda + n_x);
+
+  //calculate sigma points
+  MatrixXd Xsig = MatrixXd(n_x, 2 * n_x + 1);
+  Xsig.block(0, 0, n_x, 1) = x_;
+  Xsig.block(0, 1, n_x, n_x) = (A * c).colwise() + x;
+  Xsig.block(0, n_x + 1, n_x, n_x) = (A * -c).colwise() + x;
+
 }
 
 /**
