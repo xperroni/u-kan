@@ -1,11 +1,13 @@
-project(UnscentedKF)
+cmake_minimum_required (VERSION 2.8)
 
-cmake_minimum_required (VERSION 3.5)
+project(ExtendedKF)
 
 add_definitions(-std=c++0x)
 
-set(sources
-   src/ukf.cpp
-   src/main.cpp)
-
-add_executable(UnscentedKF ${sources})
+add_executable(ukan
+    "src/ukf.cpp"
+    "src/main.cpp"
+    "src/sensors.cpp"
+    "src/settings.cpp"
+    "src/state.cpp"
+)

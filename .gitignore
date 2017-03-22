@@ -1,5 +1,8 @@
-# silly macOS
-.DS_Store
-
 # build files
 build/
+
+# symbolic link to executable file
+ukan
+
+# Output file
+out.txt
