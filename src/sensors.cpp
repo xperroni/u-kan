@@ -19,8 +19,6 @@
 
 #include "sensors.h"
 
-#include "settings.h"
-
 using std::string;
 
 namespace ukan {
@@ -57,6 +55,10 @@ struct MeasurementLaser: Sensors::Measurement {
 
   virtual MatrixXd R() const {
     return R_;
+  }
+
+  MatrixXd transform(const MatrixXd &X) const {
+    // TODO: implement transform
   }
 
 private:
@@ -140,12 +142,36 @@ struct MeasurementRadar: Sensors::Measurement {
     return R_;
   }
 
+  MatrixXd transform(const MatrixXd &X) const {
+    int m = rows();
+    int n = X.cols();
+    MatrixXd Z(m, n);
+    for (int j = 0; j < n; ++j) {
+      double x = X(0, j);
+      double y = X(1, j);
+      double v = X(2, j);
+      double o = X(3, j);
+
+      Z(0, j) = ::sqrt(x*x + y*y);
+      Z(1, j) = atan2(y, x);
+      Z(2, j) = (x * ::cos(o) + y * ::sin(o)) * v / Z(0, j);
+    }
+
+    return Z;
+  }
+
 private:
   /** @brief Covariance matrix for this measurement. */
   const MatrixXd &R_;
 };
 
-Sensors::Sensors():
+Sensors::Sensors(
+  double s2_px,
+  double s2_py,
+  double s2_d,
+  double s2_r,
+  double s2_v
+):
   laserH_(2, 4),
   laserR_(2, 2),
   radarR_(3, 3)
@@ -154,15 +180,9 @@ Sensors::Sensors():
     1, 0, 0, 0,
     0, 1, 0, 0;
 
-  double s2_px = getSettings().s2_px;
-  double s2_py = getSettings().s2_py;
   laserR_ <<
     s2_px, 0,
     0, s2_py;
-
-  double s2_d = getSettings().s2_d;
-  double s2_r = getSettings().s2_r;
-  double s2_v = getSettings().s2_v;
 
   radarR_ <<
     s2_d, 0, 0,
@@ -180,12 +200,6 @@ Sensors::Measurement *Sensors::operator () (istream &data) const {
     else /* if (sensor_type == "R") */ {
       return new MeasurementRadar(data, radarR_);
     }
-}
-
-istream &operator >> (istream &data, Measurement &z) {
-  static Sensors sensors;
-  z = sensors(data);
-  return data;
 }
 
 ostream &operator << (ostream &data, Measurement &z) {

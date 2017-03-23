@@ -17,6 +17,7 @@
  * along with KalmOn. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "model_ctrv.h"
 #include "ukf.h"
 
 #include <fstream>
@@ -28,6 +29,30 @@
 using namespace ukan;
 
 using namespace std;
+
+// Laser measurement position variance across the X axis.
+static const double s2_px = 0.0225;
+
+// Laser measurement position variance across the Y axis.
+static const double s2_py = 0.02;
+
+// Radar direction variance.
+static const double s2_r = 0.1;
+
+// Radar position variance.
+static const double s2_d = 0.1;
+
+// Radar speed variance.
+static const double s2_v = 0.1;
+
+// Linear acceleration variance.
+static const double s2_a = 0.04;
+
+// Radial acceleration variance.
+static const double s2_u = 0.04;
+
+// Initial state variance.
+static const double s2_P0 = 0.01;
 
 /**
  * @brief Make sure user has provided input and output files.
@@ -72,12 +97,15 @@ int main(int argc, char* argv[]) {
   vector<Measurement> measurements;
   vector<State> ground_truth;
 
+  // Initalize sensors array.
+  Sensors sensors(s2_px, s2_py, s2_d, s2_r, s2_v);
+
   // Read input measurements and ground truth.
   for (;;) {
-    Measurement z;
-    State g;
+    Measurement z = sensors(data);
 
-    data >> z >> g;
+    State g;
+    data >> g;
     if (data.eof())
       break;
 
@@ -86,7 +114,7 @@ int main(int argc, char* argv[]) {
   }
 
   // Create a Kalman filter instance.
-  UKF filter;
+  UKF filter(new ModelCTRV(s2_a, s2_u, s2_P0));
 
   // State estimates.
   vector<State> estimates;

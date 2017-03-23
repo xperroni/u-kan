@@ -7,7 +7,7 @@ add_definitions(-std=c++0x)
 add_executable(ukan
     "src/ukf.cpp"
     "src/main.cpp"
+    "src/model_ctrv.cpp"
     "src/sensors.cpp"
-    "src/settings.cpp"
     "src/state.cpp"
 )

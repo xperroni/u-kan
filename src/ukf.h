@@ -20,6 +20,7 @@
 #ifndef KALMON_KALMAN_FILTER_H
 #define KALMON_KALMAN_FILTER_H
 
+#include "model.h"
 #include "sensors.h"
 #include "state.h"
 
@@ -41,7 +42,7 @@ struct UKF {
   /**
    * @brief Default constructor.
    */
-  UKF();
+  UKF(Model model);
 
   /**
    * @brief Update the filter and return the current state.
@@ -49,8 +50,19 @@ struct UKF {
   State operator () (const Measurement z);
 
 private:
+  /** @brief Process model specification. */
+  Model model_;
+
+  /** @brief Matrix of state samples. */
+  MatrixXd X_;
+
   /** @brief Timestamp of last received measurement. */
   double t_;
+
+  /**
+   * @brief Compute mean and covariance of a distribution from a set of samples.
+   */
+  void estimate(const MatrixXd &X, VectorXd &m, MatrixXd &C);
 
   /**
    * @brief Predict the state (and its covariance) of the process at the next step.

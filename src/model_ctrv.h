@@ -17,28 +17,36 @@
  * along with KalmOn. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "settings.h"
+#ifndef UKAN_MODEL_CTRV_H
+#define UKAN_MODEL_CTRV_H
+
+#include "model.h"
 
 namespace ukan {
 
-Settings::Settings():
-  s2_P0(0.01),
-  lambda(-4),
-  s2_a(0.04),
-  s2_u(0.04),
-  s2_px(0.0225),
-  s2_py(0.02),
-  s2_r(0.1),
-  s2_d(0.1),
-  s2_v(0.1)
-{
-  // Nothing to do.
-}
+struct ModelCTRV: process::Model {
+  /**
+   * @brief Create a new CTRV model with given parameters.
+   */
+  ModelCTRV(double s2_a, double s2_u, double s2_P0);
 
-Settings &getSettings() {
-  static Settings settings;
+  // See model.h for documentation.
+  virtual void augment(const VectorXd &x, const MatrixXd &P, VectorXd &x_aug, MatrixXd &P_aug);
 
-  return settings;
-}
+  // See model.h for documentation.
+  virtual VectorXd difference(int j, const MatrixXd &X, const VectorXd &x);
+
+  // See model.h for documentation.
+  virtual void iterate(double dt, int j, const MatrixXd &S, MatrixXd &X);
+
+private:
+  /** @brief Linear acceleration variance. */
+  double s2_a_;
+
+  /** @brief Radial acceleration variance. */
+  double s2_u_;
+};
 
 } // namespace ukan
+
+#endif

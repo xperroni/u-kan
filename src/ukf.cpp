@@ -19,25 +19,16 @@
 
 #include "ukf.h"
 
-#include "settings.h"
-
 using namespace std;
 
 namespace ukan {
 
-// Size of the filter state.
-static const int len_x = 5;
-
-// Size of the augmented filter state.
-static const int len_a = len_x + 2;
-
-// Identity matrix.
-static const MatrixXd I = MatrixXd::Identity(len_x, len_x);
-
-UKF::UKF():
-  P(0, 0)
+UKF::UKF(Model model):
+  P(0, 0),
+  model_(model),
+  X_(model->n_x, 2 * model->n_aug + 1)
 {
-    // Nothing to do.
+  // Nothing to do.
 }
 
 State UKF::operator () (const Measurement z) {
@@ -46,8 +37,9 @@ State UKF::operator () (const Measurement z) {
     x = z->x();
 
     // Initialize covariance matrix.
-    P.resize(len_x, len_x);
-    P = I * getSettings().s2_P0;
+    int n = model_->n_x;
+    P.resize(n, n);
+    P = MatrixXd::Identity(n, n) * model_->s2_P0;
 
     // Initialize timestamp.
     t_ = z->timestamp;
@@ -71,94 +63,73 @@ State UKF::operator () (const Measurement z) {
   return x;
 }
 
-inline void model(double dt, int j, const MatrixXd &S, MatrixXd &X) {
-    double v = S(2, j);
-    double o = S(3, j);
-    double w = S(4, j);
-    double a = S(5, j);
-    double u = S(6, j);
+void UKF::estimate(const MatrixXd &X, VectorXd &m, MatrixXd &C) {
+  // Compute prediction weights.
+  double l = model_->l;
+  double n_aug = model_->n_aug;
+  double w0 = l / (l + n_aug);
+  double wj = 0.5 / (l + n_aug);
 
-    double dt2 = dt * dt;
-    double cos_o = cos(o);
-    double sin_o = sin(o);
+  // Estimate state.
+  m = X.col(0) * w0;
+  int n = X.cols();
+  for (int j = 1; j < n; ++j) {
+      m += X.col(j) * wj;
+  }
 
-    if (w != 0) {
-        double w = S(4, j);
-        X(0, j) = S(0, j) + (v / w) * (sin(o + w * dt) - sin_o) + 0.5 * dt2 * cos_o * a;
-        X(1, j) = S(1, j) + (v / w) * (cos_o - cos(o + w * dt)) + 0.5 * dt2 * sin_o * a;
-    }
-    else {
-        X(0, j) = S(0, j) + v * cos_o * dt + 0.5 * dt2 * cos_o * a;
-        X(1, j) = S(1, j) + v * sin_o * dt + 0.5 * dt2 * sin_o * a;
-    }
-
-    X(2, j) = S(2, j) + dt * a;
-    X(3, j) = S(3, j) + w * dt + 0.5 * dt2 * u;
-    X(4, j) = S(4, j) + dt * u;
+  // Estimate covariance matrix.
+  VectorXd c0 = model_->difference(0, X, m);
+  C = c0 * c0.transpose() * w0;
+  for (int j = 1; j < n; ++j) {
+      VectorXd cj = model_->difference(j, X, m);
+      C += cj * cj.transpose() * wj;
+  }
 }
 
 void UKF::predict(double dt) {
-  // Create augmented mean vector.
-  VectorXd x_aug = VectorXd::Constant(len_a, 0.0);
-  x_aug.head(len_x) = x;
-
-  // Create augmented state covariance matrix.
-  double s2_a = getSettings().s2_a;
-  double s2_u = getSettings().s2_u;
-  MatrixXd P_aug = MatrixXd::Constant(len_a, len_a, 0.0);
-  P_aug.block(0, 0, len_x, len_x) = P;
-  P_aug.block(len_x, len_x, 2, 2) <<
-    s2_a, 0,
-    0, s2_u;
+  // Create augmented mean vector and covariance matrix.
+  VectorXd x_aug;
+  MatrixXd P_aug;
+  model_->augment(x, P, x_aug, P_aug);
 
   // Create square root matrix.
-  double l = getSettings().lambda;
+  double l = model_->l;
+  int n_aug = model_->n_aug;
   MatrixXd A = P_aug.llt().matrixL();
-  A *= sqrt(l + len_a);
+  A *= sqrt(l + n_aug);
 
   // Create sigma point matrix.
-  int n = 2 * len_a + 1;
-  MatrixXd S = MatrixXd(len_a, n);
+  int n = X_.cols();
+  MatrixXd S(n_aug, n);
   S.col(0) = x_aug;
-  S.block(0, 1, len_a, len_a) = A.colwise() + x_aug;
-  S.block(0, len_a + 1, len_a, len_a) = (-A).colwise() + x_aug;
+  S.block(0, 1, n_aug, n_aug) = A.colwise() + x_aug;
+  S.block(0, n_aug + 1, n_aug, n_aug) = (-A).colwise() + x_aug;
 
   // Create matrix with predicted sigma points as columns.
-  MatrixXd X = MatrixXd(len_x, n);
   for (int j = 0; j < n; ++j) {
-      model(dt, j, S, X);
+      model_->iterate(dt, j, S, X_);
   }
 
-  // Compute prediction weights.
-  double w0 = l / (l + len_a);
-  double wj = 0.5 / (l + len_a);
-
-  // Predict state.
-  x = X.col(0) * w0;
-  for (int j = 1; j < n; ++j) {
-      x += X.col(j) * wj;
-  }
-
-  VectorXd c0 = X.col(0) - x;
-  P = c0 * c0.transpose() * w0;
-  for (int j = 1; j < n; ++j) {
-      VectorXd cj = X.col(j) - x;
-      P += cj * cj.transpose() * wj;
-  }
+  // Estimate process state and covariance matrix.
+  estimate(X_, x, P);
 }
 
 void UKF::update(const Measurement z) {
+  VectorXd s;
+  MatrixXd S;
+  estimate(z->transform(X_), s, S);
+  S += z->R();
+
   // Retrieve the measurement model matrix.
   MatrixXd H = z->H(x);
   MatrixXd Ht = H.transpose();
 
-  VectorXd y = *z - H * x;
-  MatrixXd S = H * P * Ht + z->R();
+  VectorXd y = *z - s;
   MatrixXd K = P * Ht * S.inverse();
 
   // Update next state and covariance matrix.
   x += K * y;
-  P = (I - K * H) * P;
+  //P = (I - K * H) * P;
 }
 
 } // namespace ukan

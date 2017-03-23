@@ -64,12 +64,23 @@ struct Sensors {
      * @brief Compute the covariance matrix R for this measurement.
      */
     virtual MatrixXd R() const = 0;
+
+    /**
+     * @brief Transform column-wise state samples `X` into measurements.
+     */
+    virtual MatrixXd transform(const MatrixXd &X) const = 0;
   };
 
   /**
-   * @brief Default constructor.
+   * @brief Create a new sensor array with given parameters.
    */
-  Sensors();
+  Sensors(
+    double s2_px,
+    double s2_py,
+    double s2_d,
+    double s2_r,
+    double s2_v
+  );
 
   /**
    * @brief Return a new sensor measurement from the given input stream.
@@ -105,11 +116,6 @@ struct Measurement: shared_ptr<Sensors::Measurement> {
     reset(z);
   }
 };
-
-/**
- * @brief Read a sensor measurement from the given input stream.
- */
-istream &operator >> (istream &data, Measurement &z);
 
 /**
  * @brief Write a sensor measurement to the given output stream.
