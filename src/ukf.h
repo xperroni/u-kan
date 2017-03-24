@@ -56,6 +56,9 @@ private:
   /** @brief Matrix of state samples. */
   MatrixXd X_;
 
+  /** @brief Vector of prediction weights. */
+  VectorXd w_;
+
   /** @brief Timestamp of last received measurement. */
   double t_;
 

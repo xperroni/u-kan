@@ -42,22 +42,20 @@ void ModelCTRV::augment(const VectorXd &x, const MatrixXd &P, VectorXd &x_aug, M
     0, s2_u_;
 }
 
-VectorXd ModelCTRV::difference(int j, const MatrixXd &X, const VectorXd &x) {
+VectorXd ModelCTRV::normalize(VectorXd x) {
   static double pi2 = 2.0 * M_PI;
 
-  VectorXd d = X.col(j) - x;
-
   // Perform angle normalization.
-  while (d(3) > M_PI) {
-    d(3) -= pi2;
+  while (x(3) > M_PI) {
+    x(3) -= pi2;
   }
 
   // Perform angle normalization.
-  while (d(3) < -M_PI) {
-    d(3) += pi2;
+  while (x(3) < -M_PI) {
+    x(3) += pi2;
   }
 
-  return d;
+  return x;
 }
 
 void ModelCTRV::iterate(double dt, int j, const MatrixXd &S, MatrixXd &X) {

@@ -34,7 +34,7 @@ struct ModelCTRV: process::Model {
   virtual void augment(const VectorXd &x, const MatrixXd &P, VectorXd &x_aug, MatrixXd &P_aug);
 
   // See model.h for documentation.
-  virtual VectorXd difference(int j, const MatrixXd &X, const VectorXd &x);
+  virtual VectorXd normalize(VectorXd x);
 
   // See model.h for documentation.
   virtual void iterate(double dt, int j, const MatrixXd &S, MatrixXd &X);

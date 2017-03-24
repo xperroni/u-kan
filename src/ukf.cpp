@@ -26,9 +26,13 @@ namespace ukan {
 UKF::UKF(Model model):
   P(0, 0),
   model_(model),
-  X_(model->n_x, 2 * model->n_aug + 1)
+  X_(model->n_x, 2 * model->n_aug + 1),
+  w_(X_.cols())
 {
-  // Nothing to do.
+  double l = model_->l;
+  double n_aug = model_->n_aug;
+  w_(0) = l / (l + n_aug);
+  w_.tail(w_.rows() - 1).fill(0.5 / (l + n_aug));
 }
 
 State UKF::operator () (const Measurement z) {
@@ -64,25 +68,19 @@ State UKF::operator () (const Measurement z) {
 }
 
 void UKF::estimate(const MatrixXd &X, VectorXd &m, MatrixXd &C) {
-  // Compute prediction weights.
-  double l = model_->l;
-  double n_aug = model_->n_aug;
-  double w0 = l / (l + n_aug);
-  double wj = 0.5 / (l + n_aug);
+  int n = X.cols();
 
   // Estimate state.
-  m = X.col(0) * w0;
-  int n = X.cols();
-  for (int j = 1; j < n; ++j) {
-      m += X.col(j) * wj;
+  m.fill(0.0);
+  for (int j = 0; j < n; ++j) {
+      m += X.col(j) * w_(j);
   }
 
   // Estimate covariance matrix.
-  VectorXd c0 = model_->difference(0, X, m);
-  C = c0 * c0.transpose() * w0;
-  for (int j = 1; j < n; ++j) {
-      VectorXd cj = model_->difference(j, X, m);
-      C += cj * cj.transpose() * wj;
+  C.fill(0.0);
+  for (int j = 0; j < n; ++j) {
+      VectorXd c = model_->normalize(X.col(j) - m);
+      C += c * c.transpose() * w_(j);
   }
 }
 
@@ -115,21 +113,26 @@ void UKF::predict(double dt) {
 }
 
 void UKF::update(const Measurement z) {
-  VectorXd s;
+  MatrixXd Z = z->transform(X_);
+
+  // Estimate measurement mean and covariance.
+  VectorXd y;
   MatrixXd S;
-  estimate(z->transform(X_), s, S);
+  estimate(Z, y, S);
   S += z->R();
 
-  // Retrieve the measurement model matrix.
-  MatrixXd H = z->H(x);
-  MatrixXd Ht = H.transpose();
+  // Compute cross-correlation matrix between state and measurement sigma points.
+  MatrixXd T = MatrixXd::Constant(model_->n_x, z->rows(), 0.0);
+  for (int j = 0, n = Z.cols(); j < n; ++j) {
+    T += w_(j) * model_->normalize(X_.col(j) - x) * model_->normalize(Z.col(j) - y).transpose();
+  }
 
-  VectorXd y = *z - s;
-  MatrixXd K = P * Ht * S.inverse();
+  // Compute Kalman gain.
+  MatrixXd K = T * S.inverse();
 
-  // Update next state and covariance matrix.
-  x += K * y;
-  //P = (I - K * H) * P;
+  //update state mean and covariance matrix
+  x += K * model_->normalize(*z - y);
+  P -= K * S * K.transpose();
 }
 
 } // namespace ukan

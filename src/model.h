@@ -65,9 +65,9 @@ struct Model {
   virtual void augment(const VectorXd &x, const MatrixXd &P, VectorXd &x_aug, MatrixXd &P_aug) = 0;
 
   /**
-   * @brief Compute the difference between column `j` of matrix `X` and vector `x`.
+   * @brief Normalize the state vector `x`.
    */
-  virtual VectorXd difference(int j, const MatrixXd &X, const VectorXd &x) = 0;
+  virtual VectorXd normalize(VectorXd x) = 0;
 
   /**
    * @brief Compute the updated state using time difference `dt` and column `j` of matrix `S` as state.
