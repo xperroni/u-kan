@@ -22,7 +22,7 @@
 namespace ukan {
 
 ModelCTRV::ModelCTRV(double s2_a, double s2_u, double s2_P0):
-  Model(5, 2, s2_P0),
+  Model(5, 2, s2_P0, 3),
   s2_a_(s2_a),
   s2_u_(s2_u)
 {

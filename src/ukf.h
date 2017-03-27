@@ -56,16 +56,8 @@ private:
   /** @brief Matrix of state samples. */
   MatrixXd X_;
 
-  /** @brief Vector of prediction weights. */
-  VectorXd w_;
-
   /** @brief Timestamp of last received measurement. */
   double t_;
-
-  /**
-   * @brief Compute mean and covariance of a distribution from a set of samples.
-   */
-  void estimate(const MatrixXd &X, VectorXd &m, MatrixXd &C);
 
   /**
    * @brief Predict the state (and its covariance) of the process at the next step.

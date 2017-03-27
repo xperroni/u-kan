@@ -20,6 +20,9 @@
 #ifndef UKAN_MODEL_H
 #define UKAN_MODEL_H
 
+#include "state.h"
+#include "sensors.h"
+
 #include "Eigen/Dense"
 
 #include <memory>
@@ -28,8 +31,33 @@ namespace ukan {
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
+using Eigen::VectorXi;
 
-namespace process {
+/**
+ * @brief Normalize angle parameters of a vector to the range `[0, pi)`.
+ *
+ * @param x Vector to be normalized.
+ *
+ * @param k Indexes of angle parameters in the vector.
+ */
+VectorXd normalize_angles(VectorXd x, const VectorXi &k);
+
+/**
+ * @brief Compute the weighted sum (and accompanying covariance matrix) of the column vectors in matrix `X`.
+ *
+ * @param X Matrix of column vectors to be summed.
+ *
+ * @param w Weights of the individual column vectors.
+ *
+ * @param k Indexes of angle parameters in the vectors (so they can be normalized).
+ *
+ * @param m Summed vector.
+ *
+ * @param C Covariance matrix of the weighted sum.
+ */
+void weighted_sum(const MatrixXd &X, const VectorXd &w, const VectorXi &k, VectorXd &m, MatrixXd &C);
+
+namespace base {
 
 /**
  * @brief Process model specification.
@@ -47,22 +75,35 @@ struct Model {
   /** @brief Initial state parameter variance. */
   double s2_P0;
 
+  /** @brief Vector of prediction weights. */
+  VectorXd w;
+
   /**
    * @brief Create a new model with given parameters.
    */
-  Model(int n, int n_q, int p0):
-    n_x(n),
-    n_aug(n + n_q),
-    l(3 - n_aug),
-    s2_P0(p0)
+  Model(int n, int n_q, double p0);
+
+  /**
+   * @brief Create a new model with given parameters.
+   */
+  template<class ...Indexes> Model(int n, int n_q, double p0, int j, Indexes... indexes):
+    Model(n, n_q, p0)
   {
-    // Nothing to do.
+    k_.resize(1 + sizeof...(indexes));
+    initIndexes(0, j, indexes...);
   }
+
+  /**
+   * @brief Compute mean and covariance of a distribution from a set of samples.
+   */
+  void estimate(const MatrixXd &X, VectorXd &m, MatrixXd &C);
 
   /**
    * @brief Augment the mean vector and covariance matrix with the process noise parameters.
    */
   virtual void augment(const VectorXd &x, const MatrixXd &P, VectorXd &x_aug, MatrixXd &P_aug) = 0;
+
+  MatrixXd correlate(const State &x, const MatrixXd &X, const Measurement y, const MatrixXd &Z);
 
   /**
    * @brief Normalize the state vector `x`.
@@ -75,14 +116,33 @@ struct Model {
    * The updated state is written to column `j` of matrix `X`.
    */
   virtual void iterate(double dt, int j, const MatrixXd &S, MatrixXd &X) = 0;
+
+private:
+  /** @brief Indexes of state angle parameters. */
+  VectorXi k_;
+
+  /**
+   * @brief Leaf state of the recursive initializer (see below).
+   */
+  void initIndexes(int i, int j) {
+    k_(i) = j;
+  }
+
+  /**
+   * @brief Recursively initialize the index vector using the given parameter pack.
+   */
+  template<class ...Indexes> void initIndexes(int i, int j, Indexes... indexes) {
+    k_(i) = j;
+    initIndexes(i + 1, indexes...);
+  }
 };
 
-} // namespace process
+} // namespace base
 
 /**
  * @brief Reference-counting wrapper for process model objects.
  */
-struct Model: std::shared_ptr<process::Model> {
+struct Model: std::shared_ptr<base::Model> {
   /**
    * @brief Default constructor.
    */
@@ -93,7 +153,7 @@ struct Model: std::shared_ptr<process::Model> {
   /**
    * @brief Create a new wrapper for a sensor measurement object.
    */
-  Model(process::Model *m) {
+  Model(base::Model *m) {
     reset(m);
   }
 };

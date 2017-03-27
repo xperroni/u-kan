@@ -24,7 +24,7 @@
 
 namespace ukan {
 
-struct ModelCTRV: process::Model {
+struct ModelCTRV: base::Model {
   /**
    * @brief Create a new CTRV model with given parameters.
    */

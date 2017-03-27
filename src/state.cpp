@@ -22,28 +22,44 @@
 namespace ukan {
 
 State::State():
-  VectorXd(4)
+  VectorXd()
 {
-  *this << 0, 0, 0, 0;
+  // Nothing to do.
 }
 
-State::State(double px, double py, double vx, double vy):
-  VectorXd(4)
+State::State(int n):
+  VectorXd(n)
 {
-  *this << px, py, vx, vy;
+  VectorXd &x = *this;
+  for (int i = 0; i < n; ++i) {
+    x(i) = 0;
+  }
 }
 
 istream &operator >> (istream &in, State &x) {
-  return in >> x(0) >> x(1) >> x(2) >> x(3);
+  for (int i = 0, n = x.rows(); i < n; ++i) {
+    in >> x(i);
+  }
+
+  return in;
 }
 
 ostream &operator << (ostream &out, const State &x) {
-  return out << x(0) << "\t" << x(1) << "\t" << x(2) << "\t" << x(3);
+  for (int i = 0, n = x.rows(); i < n;) {
+    out << x(i);
+    if (++i >= n) {
+      break;
+    }
+
+    out << '\t';
+  }
+
+  return out;
 }
 
 State RMSE(const vector<State> &estimates, const vector<State> &ground_truth) {
-  int n = n = estimates.size();
-  State rmse;
+  int n = estimates.size();
+  State rmse(estimates[0].rows());
   for(int i = 0; i < n; ++i) {
     const State &a = estimates[i];
     const State &b = ground_truth[i];

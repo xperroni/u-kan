@@ -24,21 +24,18 @@ using namespace std;
 namespace ukan {
 
 UKF::UKF(Model model):
+  x(0.0, 0.0, 0.0, 0.0, 0.0),
   P(0, 0),
   model_(model),
-  X_(model->n_x, 2 * model->n_aug + 1),
-  w_(X_.cols())
+  X_(model->n_x, 2 * model->n_aug + 1)
 {
-  double l = model_->l;
-  double n_aug = model_->n_aug;
-  w_(0) = l / (l + n_aug);
-  w_.tail(w_.rows() - 1).fill(0.5 / (l + n_aug));
+  // Nothing to do.
 }
 
 State UKF::operator () (const Measurement z) {
   if (P.rows() == 0) {
     // Initialize state with first measurement.
-    x = z->x();
+    x = z->state();
 
     // Initialize covariance matrix.
     int n = model_->n_x;
@@ -67,23 +64,6 @@ State UKF::operator () (const Measurement z) {
   return x;
 }
 
-void UKF::estimate(const MatrixXd &X, VectorXd &m, MatrixXd &C) {
-  int n = X.cols();
-
-  // Estimate state.
-  m.fill(0.0);
-  for (int j = 0; j < n; ++j) {
-      m += X.col(j) * w_(j);
-  }
-
-  // Estimate covariance matrix.
-  C.fill(0.0);
-  for (int j = 0; j < n; ++j) {
-      VectorXd c = model_->normalize(X.col(j) - m);
-      C += c * c.transpose() * w_(j);
-  }
-}
-
 void UKF::predict(double dt) {
   // Create augmented mean vector and covariance matrix.
   VectorXd x_aug;
@@ -109,29 +89,22 @@ void UKF::predict(double dt) {
   }
 
   // Estimate process state and covariance matrix.
-  estimate(X_, x, P);
+  model_->estimate(X_, x, P);
 }
 
 void UKF::update(const Measurement z) {
-  MatrixXd Z = z->transform(X_);
-
-  // Estimate measurement mean and covariance.
-  VectorXd y;
   MatrixXd S;
-  estimate(Z, y, S);
-  S += z->R();
+  MatrixXd Z = z->transform(X_);
+  Measurement y = z->estimate(Z, S);
 
   // Compute cross-correlation matrix between state and measurement sigma points.
-  MatrixXd T = MatrixXd::Constant(model_->n_x, z->rows(), 0.0);
-  for (int j = 0, n = Z.cols(); j < n; ++j) {
-    T += w_(j) * model_->normalize(X_.col(j) - x) * model_->normalize(Z.col(j) - y).transpose();
-  }
+  MatrixXd T = model_->correlate(x, X_, y, Z);
 
   // Compute Kalman gain.
   MatrixXd K = T * S.inverse();
 
   //update state mean and covariance matrix
-  x += K * model_->normalize(*z - y);
+  x += K * (*(z - y));
   P -= K * S * K.transpose();
 }
 

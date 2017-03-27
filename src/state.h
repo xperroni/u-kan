@@ -44,18 +44,43 @@ struct State: VectorXd {
   State();
 
   /**
-   * @brief Create a new state of given position `(px, py)` and speed `(vx, vy)`.
+   * @brief Create new state of given length.
    */
-  State(double px, double py, double vx, double vy);
+  State(int n);
 
   /**
    * @brief Create a new state from a linear algebra object or operation.
    */
-  template<class T> State(const EigenBase<T> &x):
-    VectorXd(4)
+  template<class T> State(const EigenBase<T> &values):
+    VectorXd()
   {
-    VectorXd &values = *this;
-    values = x;
+    VectorXd &x = *this;
+    x = values;
+  }
+
+  /**
+   * @brief Create a new state with given parameters.
+   */
+  template<class ...Values> State(double v, Values... values):
+    VectorXd(1 + sizeof...(values))
+  {
+    init(0, v, values...);
+  }
+
+private:
+  /**
+   * @brief Leaf state of the recursive initializer (see below).
+   */
+  void init(int i, double v) {
+    (*this)(i) = v;
+  }
+
+  /**
+   * @brief Recursively initialize this state using the given parameter pack.
+   */
+  template<class ...Values> void init(int i, double v, Values... values) {
+    (*this)(i) = v;
+    init(i + 1, values...);
   }
 };
 

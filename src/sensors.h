@@ -29,6 +29,7 @@ namespace ukan {
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
+using Eigen::VectorXi;
 
 using std::istream;
 using std::ostream;
@@ -45,30 +46,27 @@ struct Sensors {
     /** @brief Time of measurement retrieval. */
     double timestamp;
 
+    virtual Measurement *subtractFrom(const VectorXd &y) const = 0;
+
     /**
      * @brief Write this measurement to the given output stream.
      */
     virtual ostream &write(ostream &out) const = 0;
 
     /**
-     * @brief Convert this measurement into an state estimate.
-     */
-    virtual State x() const = 0;
+    * @brief Compute mean and covariance of a distribution from a set of samples.
+    */
+    virtual Measurement *estimate(const MatrixXd &Z, MatrixXd &C) const = 0;
 
     /**
-     * @brief Compute the model matrix H for this measurement.
-     */
-    virtual MatrixXd H(const VectorXd &x) const = 0;
-
-    /**
-     * @brief Compute the covariance matrix R for this measurement.
-     */
-    virtual MatrixXd R() const = 0;
-
-    /**
-     * @brief Transform column-wise state samples `X` into measurements.
+     * @brief Transform the given matrix of column state vectors into a matrix of column measurement vectors.
      */
     virtual MatrixXd transform(const MatrixXd &X) const = 0;
+
+    /**
+     * @brief Convert this measurement into an state estimate.
+     */
+    virtual State state() const = 0;
   };
 
   /**
@@ -79,7 +77,8 @@ struct Sensors {
     double s2_py,
     double s2_d,
     double s2_r,
-    double s2_v
+    double s2_v,
+    const VectorXd &w
   );
 
   /**
@@ -88,14 +87,17 @@ struct Sensors {
   Measurement *operator () (istream &data) const;
 
 private:
-  /** @brief Laser measurement model matrix. */
-  MatrixXd laserH_;
-
   /** @brief Laser measurement covariance matrix. */
   MatrixXd laserR_;
 
   /** @brief Radar measurement covariance matrix. */
   MatrixXd radarR_;
+
+  /** @brief Radar angle parameters. */
+  VectorXi radar_k_;
+
+  /** @brief Vector of prediction weights. */
+  VectorXd w_;
 };
 
 /**
@@ -116,6 +118,10 @@ struct Measurement: shared_ptr<Sensors::Measurement> {
     reset(z);
   }
 };
+
+Measurement operator - (const VectorXd &y, const Measurement z);
+
+Measurement operator - (const Measurement y, const Measurement z);
 
 /**
  * @brief Write a sensor measurement to the given output stream.

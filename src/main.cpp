@@ -97,14 +97,17 @@ int main(int argc, char* argv[]) {
   vector<Measurement> measurements;
   vector<State> ground_truth;
 
+  Model model = new ModelCTRV(s2_a, s2_u, s2_P0);
+  int n = model->n_x;
+
   // Initalize sensors array.
-  Sensors sensors(s2_px, s2_py, s2_d, s2_r, s2_v);
+  Sensors sensors(s2_px, s2_py, s2_d, s2_r, s2_v, model->w);
 
   // Read input measurements and ground truth.
   for (;;) {
     Measurement z = sensors(data);
 
-    State g;
+    State g(n);
     data >> g;
     if (data.eof())
       break;
@@ -114,7 +117,7 @@ int main(int argc, char* argv[]) {
   }
 
   // Create a Kalman filter instance.
-  UKF filter(new ModelCTRV(s2_a, s2_u, s2_P0));
+  UKF filter(model);
 
   // State estimates.
   vector<State> estimates;
