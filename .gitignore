@@ -4,5 +4,8 @@ build/
 # symbolic link to executable file
 ukan
 
+# core file
+ukan.core
+
 # Output file
-out.txt
+out*.txt
