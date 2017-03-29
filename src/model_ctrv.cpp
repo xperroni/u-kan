@@ -1,64 +1,68 @@
 /*
  * Copyright (c) Helio Perroni Filho <xperroni@gmail.com>
  *
- * This file is part of KalmOn.
+ * This file is part of U-KAN.
  *
- * KalmOn is free software: you can redistribute it and/or modify
+ * U-KAN is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KalmOn is distributed in the hope that it will be useful,
+ * U-KAN is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KalmOn. If not, see <http://www.gnu.org/licenses/>.
+ * along with U-KAN. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "model_ctrv.h"
 
 namespace ukan {
 
-ModelCTRV::ModelCTRV(double s2_a, double s2_u, double s2_P0):
-  Model(5, 2, s2_P0, 3),
-  s2_a_(s2_a),
-  s2_u_(s2_u)
+namespace ctrv {
+
+/**
+ * @brief An state of the CTRV model.
+ */
+struct State: process::State {
+  /**
+   * @brief Default constructor.
+   */
+  State():
+    process::State(5)
+  {
+    // Nothing to do.
+  }
+
+  // See vector.h for documentation.
+  base::Vector *copy() const {
+    return new State(*this);
+  }
+
+  // See vector.h for documentation.
+  virtual void iadd(const VectorXd &b) {
+    *this += b;
+    normalize_angle(*this, 3);
+  }
+
+  // See vector.h for documentation.
+  virtual void imul(double b) {
+    *this *= b;
+    normalize_angle(*this, 3);
+  }
+};
+
+Model::Model(double s2_a, double s2_u, double s2_P0):
+  process::Model(5, 2, s2_P0)
 {
-  // Nothing to do.
+  Q <<
+    s2_a, 0,
+    0, s2_u;
 }
 
-void ModelCTRV::augment(const VectorXd &x, const MatrixXd &P, VectorXd &x_aug, MatrixXd &P_aug) {
-  // Create augmented mean vector.
-  x_aug = VectorXd::Constant(n_aug, 0.0);
-  x_aug.head(n_x) = x;
-
-  // Create augmented state covariance matrix.
-  P_aug = MatrixXd::Constant(n_aug, n_aug, 0.0);
-  P_aug.block(0, 0, n_x, n_x) = P;
-  P_aug.block(n_x, n_x, 2, 2) <<
-    s2_a_, 0,
-    0, s2_u_;
-}
-
-VectorXd ModelCTRV::normalize(VectorXd x) {
-  static double pi2 = 2.0 * M_PI;
-
-  // Perform angle normalization.
-  while (x(3) > M_PI) {
-    x(3) -= pi2;
-  }
-
-  // Perform angle normalization.
-  while (x(3) < -M_PI) {
-    x(3) += pi2;
-  }
-
-  return x;
-}
-
-void ModelCTRV::iterate(double dt, int j, const MatrixXd &S, MatrixXd &X) {
+void Model::iterate(double dt, int j, const MatrixXd &S, MatrixXd &X) {
   double v = S(2, j);
   double o = S(3, j);
   double w = S(4, j);
@@ -70,7 +74,6 @@ void ModelCTRV::iterate(double dt, int j, const MatrixXd &S, MatrixXd &X) {
   double sin_o = sin(o);
 
   if (w != 0) {
-    double w = S(4, j);
     X(0, j) = S(0, j) + (v / w) * (sin(o + w * dt) - sin_o) + 0.5 * dt2 * cos_o * a;
     X(1, j) = S(1, j) + (v / w) * (cos_o - cos(o + w * dt)) + 0.5 * dt2 * sin_o * a;
   }
@@ -83,5 +86,11 @@ void ModelCTRV::iterate(double dt, int j, const MatrixXd &S, MatrixXd &X) {
   X(3, j) = S(3, j) + w * dt + 0.5 * dt2 * u;
   X(4, j) = S(4, j) + dt * u;
 }
+
+process::State *Model::newState() {
+  return new ctrv::State();
+}
+
+} // namespace ctrv
 
 } // namespace ukan

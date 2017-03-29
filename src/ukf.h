@@ -1,28 +1,27 @@
 /*
  * Copyright (c) Helio Perroni Filho <xperroni@gmail.com>
  *
- * This file is part of KalmOn.
+ * This file is part of U-KAN.
  *
- * KalmOn is free software: you can redistribute it and/or modify
+ * U-KAN is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KalmOn is distributed in the hope that it will be useful,
+ * U-KAN is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KalmOn. If not, see <http://www.gnu.org/licenses/>.
+ * along with U-KAN. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KALMON_KALMAN_FILTER_H
-#define KALMON_KALMAN_FILTER_H
+#ifndef UKAN_UKF_H
+#define UKAN_UKF_H
 
 #include "model.h"
-#include "sensors.h"
-#include "state.h"
+#include "measurement.h"
 
 namespace ukan {
 
@@ -40,7 +39,7 @@ struct UKF {
   MatrixXd P;
 
   /**
-   * @brief Default constructor.
+   * @brief Create a new filter for the given process model.
    */
   UKF(Model model);
 
@@ -53,11 +52,25 @@ private:
   /** @brief Process model specification. */
   Model model_;
 
+  /** @brief Augmented state vector. */
+  VectorXd x_aug_;
+
+  /** @brief Augmented covariance matrix. */
+  MatrixXd P_aug_;
+
+  /** @brief Vector of prediction weights. */
+  VectorXd w_;
+
   /** @brief Matrix of state samples. */
   MatrixXd X_;
 
   /** @brief Timestamp of last received measurement. */
   double t_;
+
+  /**
+   * @brief Estimate mean and covariance matrix of a sample set.
+   */
+  void estimate(const MatrixXd &X, Vector &m, MatrixXd &C);
 
   /**
    * @brief Predict the state (and its covariance) of the process at the next step.

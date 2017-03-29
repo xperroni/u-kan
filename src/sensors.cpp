@@ -1,20 +1,20 @@
 /*
  * Copyright (c) Helio Perroni Filho <xperroni@gmail.com>
  *
- * This file is part of KalmOn.
+ * This file is part of U-KAN.
  *
- * KalmOn is free software: you can redistribute it and/or modify
+ * U-KAN is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KalmOn is distributed in the hope that it will be useful,
+ * U-KAN is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KalmOn. If not, see <http://www.gnu.org/licenses/>.
+ * along with U-KAN. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "sensors.h"
@@ -28,45 +28,31 @@ namespace ukan {
 /**
  * @brief A measurement retrieved from the laser sensor.
  */
-struct MeasurementLaser: Sensors::Measurement {
+struct MeasurementLaser: sensor::Measurement {
   /**
    * @brief Retrieve a new laser measurement from the given input stream.
    */
-  MeasurementLaser(istream &data, const VectorXd &w, const MatrixXd &R):
-    w_(w),
+  MeasurementLaser(istream &data, Model model, const MatrixXd &R):
+    sensor::Measurement(2),
+    model_(model),
     R_(R)
   {
-    resize(2);
-    Sensors::Measurement &z = *this;
+    sensor::Measurement &z = *this;
     data >> z(0) >> z(1) >> z.timestamp;
   }
 
-  virtual Sensors::Measurement *subtractFrom(const VectorXd &y) const {
-    Sensors::Measurement *d = new MeasurementLaser(*this);
-    VectorXd &v = *d;
-    v = y - *this;
-    return d;
+  // See vector.h for documentation.
+  base::Vector *copy() const {
+    return new MeasurementLaser(*this);
   }
 
+  // See measurement.h for documentation.
   virtual ostream &write(ostream &out) const {
-      const Sensors::Measurement &z = *this;
+      const sensor::Measurement &z = *this;
       return out << z(0) << "\t" << z(1);
   }
 
-  virtual State state() const {
-    const Sensors::Measurement &z = *this;
-    return State(z(0), z(1), 0.0, 0.0, 0.0);
-  }
-
-  virtual Sensors::Measurement *estimate(const MatrixXd &Z, MatrixXd &S) const {
-    Sensors::Measurement *z = new MeasurementLaser(*this);
-    int m = rows();
-    S.resize(m, m);
-    weighted_sum(Z, w_, VectorXi(), *z, S);
-    S += R_;
-    return z;
-  }
-
+  // See measurement.h for documentation.
   virtual MatrixXd transform(const MatrixXd &X) const {
     int m = rows();
     int n = X.cols();
@@ -79,9 +65,22 @@ struct MeasurementLaser: Sensors::Measurement {
     return Z;
   }
 
+  // See measurement.h for documentation.
+  virtual State state() const {
+    State x = model_->newState();
+    const sensor::Measurement &z = *this;
+    *x << z(0), z(1), 0.0, 0.0, 0.0;
+    return x;
+  }
+
+  // See measurement.h for documentation.
+  virtual MatrixXd R() const {
+    return R_;
+  }
+
 private:
-  /** @brief Vector of prediction weights. */
-  const VectorXd &w_;
+  /** @brief Process model. */
+  Model model_;
 
   /** @brief Covariance matrix for this measurement. */
   const MatrixXd &R_;
@@ -90,57 +89,45 @@ private:
 /**
  * @brief A measurement retrieved from the radar sensor.
  */
-struct MeasurementRadar: Sensors::Measurement {
+struct MeasurementRadar: sensor::Measurement {
   /**
    * @brief Retrieve a new radar measurement from the given input stream.
    */
-  MeasurementRadar(istream &data, const VectorXd &w, const VectorXi &k, const MatrixXd &R):
-    w_(w),
-    k_(k),
+  MeasurementRadar(istream &data, Model model, const MatrixXd &R):
+    sensor::Measurement(3),
+    model_(model),
     R_(R)
   {
-    resize(3);
-    Sensors::Measurement &z = *this;
+    sensor::Measurement &z = *this;
     data >> z(0) >> z(1) >> z(2) >> z.timestamp;
   }
 
-  virtual Sensors::Measurement *subtractFrom(const VectorXd &y) const {
-    Sensors::Measurement *d = new MeasurementRadar(*this);
-    VectorXd &v = *d;
-    v = normalize_angles(y - *this, k_);
-    return d;
+  // See vector.h for documentation.
+  base::Vector *copy() const {
+    return new MeasurementRadar(*this);
   }
 
+  // See vector.h for documentation.
+  virtual void iadd(const VectorXd &b) {
+    *this += b;
+    normalize_angle(*this, 1);
+  }
+
+  // See vector.h for documentation.
+  virtual void imul(const VectorXd &b) {
+    *this *= b;
+    normalize_angle(*this, 1);
+  }
+
+  // See measurement.h for documentation.
   virtual ostream &write(ostream &out) const {
-    const Sensors::Measurement &z = *this;
+    const sensor::Measurement &z = *this;
     double r = z(0);
     double p = z(1);
     return out << r * ::cos(p) << "\t" << r * ::sin(p);
   }
 
-  virtual State state() const {
-    const Sensors::Measurement &z = *this;
-    double d = z(0);
-    double r = z(1);
-    double v = z(2);
-
-    double cos_r = ::cos(r);
-    double sin_r = ::sin(r);
-
-    // r is not really the same value as the psi state parameter,
-    // but it's a reasonable approximation.
-    return State(d * cos_r, d * sin_r, v, r, 0.0);
-  }
-
-  virtual Sensors::Measurement *estimate(const MatrixXd &Z, MatrixXd &S) const {
-    Sensors::Measurement *z = new MeasurementRadar(*this);
-    int m = rows();
-    S.resize(m, m);
-    weighted_sum(Z, w_, k_, *z, S);
-    S += R_;
-    return z;
-  }
-
+  // See measurement.h for documentation.
   virtual MatrixXd transform(const MatrixXd &X) const {
     int m = rows();
     int n = X.cols();
@@ -151,37 +138,57 @@ struct MeasurementRadar: Sensors::Measurement {
       double v = X(2, j);
       double o = X(3, j);
 
-      Z(0, j) = ::sqrt(x*x + y*y);
+      double d = ::sqrt(x*x + y*y);
+
+      Z(0, j) = d;
       Z(1, j) = atan2(y, x);
-      Z(2, j) = (x * ::cos(o) + y * ::sin(o)) * v / Z(0, j);
+      Z(2, j) = (d != 0 ? (x * ::cos(o) + y * ::sin(o)) * v / d : 0);
     }
 
     return Z;
   }
 
-private:
-  /** @brief Vector of prediction weights. */
-  const VectorXd &w_;
+  // See measurement.h for documentation.
+  virtual State state() const {
+    const sensor::Measurement &z = *this;
+    double d = z(0);
+    double r = z(1);
+    double v = z(2);
 
-  /** @brief Vector of angle indexes. */
-  const VectorXi &k_;
+    double cos_r = ::cos(r);
+    double sin_r = ::sin(r);
+
+    // r is not really the same value as the psi state parameter,
+    // but it's a reasonable approximation.
+    State x = model_->newState();
+    *x << d * cos_r, d * sin_r, v, r, 0.0;
+    return x;
+  }
+
+  // See measurement.h for documentation.
+  virtual MatrixXd R() const {
+    return R_;
+  }
+
+private:
+  /** @brief Process model. */
+  Model model_;
 
   /** @brief Covariance matrix for this measurement. */
   const MatrixXd &R_;
 };
 
 Sensors::Sensors(
+  Model model,
   double s2_px,
   double s2_py,
   double s2_d,
   double s2_r,
-  double s2_v,
-  const VectorXd &w
+  double s2_v
 ):
+  model_(model),
   laserR_(2, 2),
-  radarR_(3, 3),
-  radar_k_(1),
-  w_(w)
+  radarR_(3, 3)
 {
   laserR_ <<
     s2_px, 0,
@@ -191,32 +198,18 @@ Sensors::Sensors(
     s2_d, 0, 0,
     0, s2_r, 0,
     0, 0, s2_v;
-
-  radar_k_(0) = 1;
 }
 
-Sensors::Measurement *Sensors::operator () (istream &data) const {
+Measurement Sensors::operator () (istream &data) const {
     string sensor;
     data >> sensor;
 
     if (sensor == "L") {
-      return new MeasurementLaser(data, w_, laserR_);
+      return new MeasurementLaser(data, model_, laserR_);
     }
     else /* if (sensor_type == "R") */ {
-      return new MeasurementRadar(data, w_, radar_k_, radarR_);
+      return new MeasurementRadar(data, model_, radarR_);
     }
-}
-
-Measurement operator - (const Measurement y, const Measurement z) {
-  return z->subtractFrom(*y);
-}
-
-Measurement operator - (const VectorXd &y, const Measurement z) {
-  return z->subtractFrom(y);
-}
-
-ostream &operator << (ostream &data, Measurement &z) {
-  return z->write(data);
 }
 
 } // namespace ukan

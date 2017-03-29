@@ -17,33 +17,18 @@
  * along with U-KAN. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UKAN_MODEL_CTRV_H
-#define UKAN_MODEL_CTRV_H
-
-#include "model.h"
+#include "measurement.h"
 
 namespace ukan {
 
-namespace ctrv {
+namespace sensor {
 
-/**
- * @brief The CTRV model describes non-linear motion in terms of position, speed, direction and ratio of turning.
- */
-struct Model: process::Model {
-  /**
-   * @brief Create a new CTRV model with given parameters.
-   */
-  Model(double s2_a, double s2_u, double s2_P0);
+Measurement::Measurement(int n):
+  base::Vector(n)
+{
+  // Nothing to do.
+}
 
-  // See model.h for documentation.
-  virtual void iterate(double dt, int j, const MatrixXd &S, MatrixXd &X);
-
-  // See model.h for documentation.
-  virtual process::State *newState();
-};
-
-} // namespace ctrv
+} // namespace sensor
 
 } // namespace ukan
-
-#endif

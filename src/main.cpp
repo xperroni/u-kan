@@ -1,23 +1,24 @@
 /*
  * Copyright (c) Helio Perroni Filho <xperroni@gmail.com>
  *
- * This file is part of KalmOn.
+ * This file is part of U-KAN.
  *
- * KalmOn is free software: you can redistribute it and/or modify
+ * U-KAN is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KalmOn is distributed in the hope that it will be useful,
+ * U-KAN is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KalmOn. If not, see <http://www.gnu.org/licenses/>.
+ * along with U-KAN. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "model_ctrv.h"
+#include "sensors.h"
 #include "ukf.h"
 
 #include <fstream>
@@ -97,17 +98,16 @@ int main(int argc, char* argv[]) {
   vector<Measurement> measurements;
   vector<State> ground_truth;
 
-  Model model = new ModelCTRV(s2_a, s2_u, s2_P0);
-  int n = model->n_x;
+  // Initalize model.
+  Model model = new ctrv::Model(s2_a, s2_u, s2_P0);
 
   // Initalize sensors array.
-  Sensors sensors(s2_px, s2_py, s2_d, s2_r, s2_v, model->w);
+  Sensors sensors(model, s2_px, s2_py, s2_d, s2_r, s2_v);
 
   // Read input measurements and ground truth.
   for (;;) {
     Measurement z = sensors(data);
-
-    State g(n);
+    State g = model->newState();
     data >> g;
     if (data.eof())
       break;
