@@ -21,9 +21,9 @@ def plot(path):
         readings.append(values[5:7])
         ground_truth.append(values[7:9])
 
-    plot_readings(estimates, 'r.')
-    plot_readings(readings, 'g.')
     plot_readings(ground_truth, 'b.')
+    plot_readings(readings, 'g.')
+    plot_readings(estimates, 'r.')
 
     pp.show()
 
