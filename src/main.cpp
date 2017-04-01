@@ -35,25 +35,25 @@ using namespace std;
 static const double s2_px = 0.0225;
 
 // Laser measurement position variance across the Y axis.
-static const double s2_py = 0.02;
-
-// Radar direction variance.
-static const double s2_r = 0.1;
+static const double s2_py = 0.0225;
 
 // Radar position variance.
-static const double s2_d = 0.1;
+static const double s2_d = 0.09;
+
+// Radar direction variance.
+static const double s2_r = 0.0009;
 
 // Radar speed variance.
-static const double s2_v = 0.1;
+static const double s2_v = 0.09;
 
 // Linear acceleration variance.
-static const double s2_a = 0.04;
+static const double s2_a = 2;
 
 // Radial acceleration variance.
-static const double s2_u = 0.04;
+static const double s2_u = 0.1;
 
 // Initial state variance.
-static const double s2_P0 = 0.01;
+static const double s2_P0 = 0.1;
 
 /**
  * @brief Make sure user has provided input and output files.
@@ -83,6 +83,20 @@ template<class T> void open(T &file, const char *path) {
   }
 }
 
+State toLinearState(State x_ctrv) {
+  double x = x_ctrv(0);
+  double y = x_ctrv(1);
+  double v = x_ctrv(2);
+  double o = x_ctrv(3);
+
+  double vx = v * cos(o);
+  double vy = v * sin(o);
+
+  State x_linear = new process::State(4);
+  *x_linear << x, y, vx, vy;
+  return x_linear;
+}
+
 /**
  * @brief Run program.
  */
@@ -107,7 +121,7 @@ int main(int argc, char* argv[]) {
   // Read input measurements and ground truth.
   for (;;) {
     Measurement z = sensors(data);
-    State g = model->newState();
+    State g = new process::State(4);
     data >> g;
     if (data.eof())
       break;
@@ -126,14 +140,15 @@ int main(int argc, char* argv[]) {
   // record them along ground truth values.
   for (size_t k = 0, n = measurements.size(); k < n; ++k) {
     Measurement z = measurements[k];
-    State x = filter(z);
+    State x_linear = toLinearState(filter(z));
 
     cerr << "x:" << endl << filter.x << endl;
     cerr << "P:" << endl << filter.P << endl;
+    cerr << "e(" << z->rows() <<  "): " << filter.e << endl;
 
-    out << x << '\t' << z << '\t' << ground_truth[k] << endl;
+    out << x_linear << '\t' << z << '\t' << ground_truth[k] << endl;
 
-    estimates.push_back(x);
+    estimates.push_back(x_linear);
   }
 
   // Compute overall estimate accuracy using Root Mean Squared Error (RMSE).
