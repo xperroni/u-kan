@@ -18,12 +18,12 @@ def plot(path):
     for line in open(path):
         values = [float(value) for value in line.split('\t')]
         estimates.append(values[:2])
-        readings.append(values[5:7])
-        ground_truth.append(values[7:9])
+        readings.append(values[4:6])
+        ground_truth.append(values[6:8])
 
-    plot_readings(ground_truth, 'b.')
-    plot_readings(readings, 'g.')
-    plot_readings(estimates, 'r.')
+    plot_readings(ground_truth, 'b-')
+    #plot_readings(readings, 'g.')
+    plot_readings(estimates, 'r-')
 
     pp.show()
 
