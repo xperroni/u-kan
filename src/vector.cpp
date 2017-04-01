@@ -94,8 +94,12 @@ Vector operator * (double a, const Vector b) {
   return b->mul(a);
 }
 
-MatrixXd operator * (const Vector a, MatrixXd b) {
+MatrixXd operator * (const Vector a, const MatrixXd &b) {
   return *a * b;
+}
+
+VectorXd operator * (const MatrixXd &a, const Vector b) {
+  return a * *b;
 }
 
 istream &operator >> (istream &in, Vector &x) {

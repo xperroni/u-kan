@@ -123,7 +123,9 @@ Vector operator * (const Vector a, double b);
 
 Vector operator * (double a, const Vector b);
 
-MatrixXd operator * (const Vector a, MatrixXd b);
+MatrixXd operator * (const Vector a, const MatrixXd &b);
+
+VectorXd operator * (const MatrixXd &a, const Vector b);
 
 /**
  * @brief Read a state from the given input stream.
