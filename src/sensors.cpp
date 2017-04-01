@@ -39,6 +39,8 @@ struct MeasurementLaser: sensor::Measurement {
   {
     sensor::Measurement &z = *this;
     data >> z(0) >> z(1) >> z.timestamp;
+    if (z(0) == 0 && z(1) == 0)
+      z(0) = z(1) = 0.0001;
   }
 
   // See vector.h for documentation.
@@ -100,6 +102,8 @@ struct MeasurementRadar: sensor::Measurement {
   {
     sensor::Measurement &z = *this;
     data >> z(0) >> z(1) >> z(2) >> z.timestamp;
+    if (z(0) == 0 && z(1) == 0)
+      z(0) = z(1) = 0.0001;
   }
 
   // See vector.h for documentation.
@@ -142,7 +146,7 @@ struct MeasurementRadar: sensor::Measurement {
 
       Z(0, j) = d;
       Z(1, j) = atan2(y, x);
-      Z(2, j) = (d != 0 ? (x * ::cos(o) + y * ::sin(o)) * v / d : 0);
+      Z(2, j) = (x * ::cos(o) + y * ::sin(o)) * v / d;
     }
 
     return Z;
