@@ -26,6 +26,7 @@ namespace ukan {
 UKF::UKF(Model model):
   x(model->newState()),
   P(0, 0),
+  e(1),
   model_(model),
   w_(2 * model->n_aug + 1),
   X_(model->n_x, 2 * model->n_aug + 1)
@@ -42,8 +43,8 @@ UKF::UKF(Model model):
   P_aug_.block(n_x, n_x, n_Q, n_Q) = model->Q;
 
   // Initialize prediction weight vector.
+  w_.fill(0.5 / (l + n_aug));
   w_(0) = l / (l + n_aug);
-  w_.tail(w_.rows() - 1).fill(0.5 / (l + n_aug));
 
 }
 
@@ -76,7 +77,7 @@ State UKF::operator () (const Measurement z) {
   // Update timestamp.
   t_ = t;
 
-  return x;
+  return x->copy();
 }
 
 void UKF::estimate(const MatrixXd &X, Vector &m, MatrixXd &C) {
@@ -105,7 +106,7 @@ void UKF::predict(double dt) {
   x_aug_.head(n_x) = *x;
   P_aug_.block(0, 0, n_x, n_x) = P;
 
-  // Create square root matrix.
+  // Create weighted square root matrix.
   MatrixXd A = P_aug_.llt().matrixL();
   A *= sqrt(l + n_aug);
 
@@ -114,7 +115,7 @@ void UKF::predict(double dt) {
   MatrixXd S(n_aug, n);
   S.col(0) = x_aug_;
   S.block(0, 1, n_aug, n_aug) = A.colwise() + x_aug_;
-  S.block(0, n_aug + 1, n_aug, n_aug) = (-A).colwise() + x_aug_;
+  S.block(0, 1 + n_aug, n_aug, n_aug) = (-A).colwise() + x_aug_;
 
   // Create matrix with predicted sigma points as columns.
   for (int j = 0; j < n; ++j) {
@@ -130,7 +131,7 @@ void UKF::update(const Measurement z) {
   MatrixXd Z = z->transform(X_);
 
   // Compute measurement cross-correlation matrix.
-  Measurement y = z * 0.0;
+  Measurement y = z->copy();
   MatrixXd S(z->rows(), z->rows());
   estimate(Z, y, S);
   S += z->R();
@@ -142,11 +143,16 @@ void UKF::update(const Measurement z) {
   }
 
   // Compute Kalman gain.
-  MatrixXd K = T * S.inverse();
+  MatrixXd Si = S.inverse();
+  MatrixXd K = T * Si;
 
-  //update state mean and covariance matrix
-  x += K * (*(z - y));
+  // Update state mean and covariance matrix.
+  Measurement d = z - y;
+  x += K * d;
   P -= K * S * K.transpose();
+
+  // Compute NIS.
+  e = d->transpose() * Si * d;
 }
 
 } // namespace ukan

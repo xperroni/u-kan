@@ -38,6 +38,9 @@ struct UKF {
   /** @brief State covariance matrix. */
   MatrixXd P;
 
+  /** @brief Normalized Innovation Squared (NIS) */
+  VectorXd e;
+
   /**
    * @brief Create a new filter for the given process model.
    */
