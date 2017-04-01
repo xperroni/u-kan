@@ -22,6 +22,7 @@
 
 #include "vector.h"
 
+#include <stdexcept>
 #include <vector>
 
 namespace ukan {
@@ -61,8 +62,21 @@ struct State: Vector {
   /**
    * @brief Create a new wrapper for a sensor measurement object.
    */
-  State(process::State *x) {
-    reset(x);
+  State(process::State *x):
+    Vector(x)
+  {
+    // Nothing to do.
+  }
+
+  /**
+   * @brief Create a new wrapper for a sensor measurement object.
+   */
+  State(base::Vector *x):
+    Vector(x)
+  {
+    if (dynamic_cast<process::State*>(get()) == nullptr) {
+      throw std::runtime_error("Failed converting Vector input to State");
+    }
   }
 };
 

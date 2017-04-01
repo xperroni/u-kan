@@ -85,6 +85,15 @@ struct Measurement: Vector {
   /**
    * @brief Create a new wrapper for a sensor measurement object.
    */
+  Measurement(base::Vector *z):
+    Vector(z)
+  {
+    // Nothing to do.
+  }
+
+  /**
+   * @brief Create a new wrapper for a sensor measurement object.
+   */
   Measurement(Vector x):
     Vector(x)
   {
