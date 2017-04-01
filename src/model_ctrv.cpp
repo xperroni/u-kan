@@ -82,9 +82,9 @@ void Model::iterate(double dt, int j, const MatrixXd &S, MatrixXd &X) {
     X(1, j) = S(1, j) + v * sin_o * dt + 0.5 * dt2 * sin_o * a;
   }
 
-  X(2, j) = S(2, j) + dt * a;
-  X(3, j) = S(3, j) + w * dt + 0.5 * dt2 * u;
-  X(4, j) = S(4, j) + dt * u;
+  X(2, j) = v + dt * a;
+  X(3, j) = o + w * dt + 0.5 * dt2 * u;
+  X(4, j) = w + dt * u;
 }
 
 process::State *Model::newState() {
