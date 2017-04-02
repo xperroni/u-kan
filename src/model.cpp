@@ -40,7 +40,7 @@ namespace process {
 Model::Model(int n, int n_Q, double p0):
   n_x(n),
   n_aug(n + n_Q),
-  l(3 - n_aug),
+  l(1 - n_aug),
   s2_P0(p0),
   Q(n_Q, n_Q)
 {

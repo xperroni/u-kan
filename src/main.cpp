@@ -38,19 +38,19 @@ static const double s2_px = 0.0225;
 static const double s2_py = 0.0225;
 
 // Radar position variance.
-static const double s2_d = 0.09;
+static const double s2_d = 0.01;
 
 // Radar direction variance.
-static const double s2_r = 0.0009;
+static const double s2_r = 0.0001;
 
 // Radar speed variance.
 static const double s2_v = 0.09;
 
 // Linear acceleration variance.
-static const double s2_a = 2;
+static const double s2_a = 0.01;
 
 // Radial acceleration variance.
-static const double s2_u = 0.1;
+static const double s2_u = 0.14;
 
 // Initial state variance.
 static const double s2_P0 = 0.1;
@@ -153,6 +153,7 @@ int main(int argc, char* argv[]) {
 
   // Compute overall estimate accuracy using Root Mean Squared Error (RMSE).
   cerr << "Accuracy - RMSE:" << endl << fixed << setprecision(2) << RMSE(estimates, ground_truth) << endl;
+//   cerr << "Accuracy - RMSE:" << endl << RMSE(estimates, ground_truth) << endl;
 
   out.close();
   data.close();
